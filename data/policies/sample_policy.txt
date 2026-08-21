@@ -1,0 +1,36 @@
+POLICY TYPE: INDIVIDUAL_HEALTH
+
+CLAUSE: ROOM RENT LIMIT
+
+The eligible room rent is limited to 1 percent of the Sum Insured per day,
+subject to the maximum room category permitted under the policy.
+
+If the insured selects a room exceeding the eligible room rent limit,
+proportionate deductions may apply to eligible associated expenses
+such as nursing charges and professional fees, where applicable
+under the policy terms.
+
+CLAUSE: WAITING PERIOD
+
+Specific listed diseases are subject to a waiting period of 24 months
+from the policy commencement date, unless specifically waived or
+modified by the policy schedule.
+
+CLAUSE: NON-PAYABLE ITEMS
+
+Items such as registration charges, admission charges, administrative
+charges, food charges, toiletries and certain consumables may be
+non-payable according to the applicable policy terms and standard
+exclusion rules.
+
+CLAUSE: SUM INSURED
+
+The maximum amount payable under the policy cannot exceed the
+available Sum Insured, including applicable accumulated or exhausted
+limits.
+
+CLAUSE: MEDICAL NECESSITY
+
+Hospitalization and treatment must be medically necessary and
+consistent with the diagnosed medical condition and applicable
+policy terms.

@@ -1,0 +1,80 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Environment / secrets
+.env
+.env.*
+!.env.example
+
+*.pem
+*.key
+secrets/
+credentials/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Local database
+*.db
+*.sqlite
+*.sqlite3
+
+# Medical / claim data
+data/medical_documents/*
+data/sample_claims/*
+
+!data/medical_documents/.gitkeep
+!data/sample_claims/.gitkeep
+
+# Vector stores
+vectorstore/*
+!vectorstore/.gitkeep
+
+*.faiss
+*.pkl
+
+# Cache
+.cache/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Test coverage
+.coverage
+.coverage.*
+htmlcov/
+
+# Build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Temporary
+*.tmp
+*.temp
+*.bak
+temp/
+tmp/
+
+# Docker overrides
+docker-compose.override.yml

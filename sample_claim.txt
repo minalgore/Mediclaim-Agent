@@ -1,0 +1,8 @@
+Patient Name: Rajesh Kumar
+Aadhaar: 2345 6789 0123
+Phone: 9876543210
+ABHA ID: 12-3456-7890-1234
+Diagnosis: Appendicitis
+Treatment: Laparoscopic appendectomy
+Hospital: City Care Hospital
+Claim Amount: 100000

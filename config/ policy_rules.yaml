@@ -1,0 +1,371 @@
+# ============================================================
+# MediClaim Adjudication - Policy Rules
+# ============================================================
+
+version: "1.0"
+
+# ============================================================
+# Claim Statuses
+# ============================================================
+
+claim_statuses:
+  - APPROVED
+  - PARTIAL_APPROVAL
+  - REJECTED
+  - QUERY_RAISED
+
+
+# ============================================================
+# Fraud Risk Levels
+# ============================================================
+
+fraud_risk_levels:
+  - LOW
+  - MEDIUM
+  - HIGH
+
+
+# ============================================================
+# Sum Insured Rules
+# ============================================================
+
+sum_insured:
+  enabled: true
+
+  rules:
+    - id: SI_001
+      name: "Approved amount cannot exceed remaining sum insured"
+      condition: "approved_amount <= remaining_sum_insured"
+      action: "BLOCK"
+
+    - id: SI_002
+      name: "Claim amount cannot exceed requested amount"
+      condition: "approved_amount <= requested_amount"
+      action: "BLOCK"
+
+
+# ============================================================
+# Waiting Period Rules
+# ============================================================
+
+waiting_period:
+  enabled: true
+
+  default_specific_ailment_waiting_years: 2
+
+  rules:
+
+    - id: WP_001
+      name: "Specific ailment waiting period"
+      waiting_years: 2
+      action: "QUERY_OR_REJECT"
+
+    - id: WP_002
+      name: "Pre-existing disease waiting period"
+      waiting_years: 2
+      action: "QUERY_OR_REJECT"
+
+
+# ============================================================
+# Room Rent Rules
+# ============================================================
+
+room_rent:
+  enabled: true
+
+  default_limit_type: "PERCENTAGE_OF_SUM_INSURED"
+
+  default_limit_percentage: 1.0
+
+  proportional_deduction:
+    enabled: true
+
+    formula: >
+      eligible_room_rate / actual_room_rate
+
+    apply_to:
+      - room_rent
+      - nursing
+      - doctor_fees
+      - surgeon_fees
+      - procedure_related_expenses
+
+  rules:
+
+    - id: ROOM_001
+      name: "Room rent exceeds policy limit"
+      condition: "actual_room_rate > eligible_room_rate"
+      action: "APPLY_PROPORTIONAL_DEDUCTION"
+
+    - id: ROOM_002
+      name: "Room rent within policy limit"
+      condition: "actual_room_rate <= eligible_room_rate"
+      action: "NO_DEDUCTION"
+
+
+# ============================================================
+# Co-pay
+# ============================================================
+
+copay:
+  enabled: true
+
+  default_percentage: 0
+
+  rules:
+
+    - id: COPAY_001
+      name: "Apply policy co-pay"
+      formula: >
+        eligible_amount * copay_percentage / 100
+      action: "DEDUCT"
+
+
+# ============================================================
+# Deductible
+# ============================================================
+
+deductible:
+  enabled: true
+
+  default_amount: 0
+
+  rules:
+
+    - id: DED_001
+      name: "Apply policy deductible"
+      formula: >
+        max(eligible_amount - deductible, 0)
+      action: "DEDUCT"
+
+
+# ============================================================
+# Non-Payable Items
+# ============================================================
+
+non_payable_items:
+  enabled: true
+
+  categories:
+
+    - id: NPI_001
+      category: "FOOD_CHARGES"
+      description: "Patient food / dietary charges where not covered"
+      action: "DEDUCT"
+
+    - id: NPI_002
+      category: "GLOVES"
+      description: "Non-payable consumable items where applicable"
+      action: "DEDUCT"
+
+    - id: NPI_003
+      category: "MASKS"
+      description: "Non-payable personal protective consumables where applicable"
+      action: "DEDUCT"
+
+    - id: NPI_004
+      category: "SANITARY_ITEMS"
+      description: "Personal hygiene / sanitary items"
+      action: "DEDUCT"
+
+    - id: NPI_005
+      category: "ADMINISTRATIVE_CHARGES"
+      description: "Administrative or documentation charges where excluded"
+      action: "DEDUCT"
+
+    - id: NPI_006
+      category: "TELEPHONE_CHARGES"
+      description: "Telephone / communication charges"
+      action: "DEDUCT"
+
+
+# ============================================================
+# Exclusions
+# ============================================================
+
+exclusions:
+  enabled: true
+
+  rules:
+
+    - id: EXC_001
+      name: "Excluded treatment"
+      action: "REJECT"
+
+    - id: EXC_002
+      name: "Excluded procedure"
+      action: "REJECT"
+
+    - id: EXC_003
+      name: "Excluded condition"
+      action: "REJECT"
+
+
+# ============================================================
+# Clinical Consistency
+# ============================================================
+
+clinical_consistency:
+  enabled: true
+
+  rules:
+
+    - id: CLIN_001
+      name: "Diagnosis and treatment mismatch"
+      action: "FLAG"
+
+    - id: CLIN_002
+      name: "Unusual length of stay"
+      action: "FLAG"
+
+    - id: CLIN_003
+      name: "Procedure not clinically supported"
+      action: "FLAG"
+
+    - id: CLIN_004
+      name: "Investigation not related to diagnosis"
+      action: "FLAG"
+
+
+# ============================================================
+# Billing / Fraud Rules
+# ============================================================
+
+fraud_detection:
+  enabled: true
+
+  rules:
+
+    - id: FRAUD_001
+      name: "Possible unbundling"
+      description: "Procedure components billed separately when included in package"
+      severity: "MEDIUM"
+      action: "FLAG"
+
+    - id: FRAUD_002
+      name: "Duplicate billing"
+      description: "Same service or item appears multiple times"
+      severity: "MEDIUM"
+      action: "FLAG"
+
+    - id: FRAUD_003
+      name: "Timeline mismatch"
+      description: "Investigation date conflicts with admission/discharge timeline"
+      severity: "MEDIUM"
+      action: "FLAG"
+
+    - id: FRAUD_004
+      name: "Clinical billing mismatch"
+      description: "Billing pattern inconsistent with documented diagnosis/treatment"
+      severity: "HIGH"
+      action: "FLAG"
+
+    - id: FRAUD_005
+      name: "Unusual quantity"
+      description: "Potentially excessive quantity of billed item"
+      severity: "LOW"
+      action: "FLAG"
+
+
+# ============================================================
+# Fraud Risk Thresholds
+# ============================================================
+
+fraud_risk:
+  thresholds:
+    low_max: 30
+    medium_max: 70
+    high_min: 71
+
+  human_review:
+    medium: false
+    high: true
+
+
+# ============================================================
+# Human Review Rules
+# ============================================================
+
+human_review:
+  enabled: true
+
+  conditions:
+
+    - id: HR_001
+      condition: "fraud_risk == HIGH"
+      action: "REVIEW"
+
+    - id: HR_002
+      condition: "clinical_mismatch == true"
+      action: "REVIEW"
+
+    - id: HR_003
+      condition: "policy_clause_not_found == true"
+      action: "REVIEW"
+
+    - id: HR_004
+      condition: "calculation_validation_failed == true"
+      action: "REVIEW"
+
+    - id: HR_005
+      condition: "insufficient_claim_information == true"
+      action: "QUERY_RAISED"
+
+
+# ============================================================
+# Guardrails
+# ============================================================
+
+guardrails:
+  enabled: true
+
+  financial:
+
+    - id: GR_001
+      rule: "approved_amount >= 0"
+      action: "BLOCK"
+
+    - id: GR_002
+      rule: "approved_amount <= requested_amount"
+      action: "BLOCK"
+
+    - id: GR_003
+      rule: "approved_amount <= remaining_sum_insured"
+      action: "BLOCK"
+
+    - id: GR_004
+      rule: "deducted_amount == requested_amount - approved_amount"
+      action: "BLOCK"
+
+  decision:
+
+    - id: GR_005
+      rule: "REJECTED implies approved_amount == 0"
+      action: "BLOCK"
+
+    - id: GR_006
+      rule: "Every deduction requires policy clause evidence"
+      action: "BLOCK"
+
+    - id: GR_007
+      rule: "Every rejection requires policy clause evidence"
+      action: "BLOCK"
+
+    - id: GR_008
+      rule: "HIGH fraud risk requires human review"
+      action: "BLOCK"
+
+    - id: GR_009
+      rule: "Waiting period violation cannot result in automatic approval"
+      action: "BLOCK"
+
+
+# ============================================================
+# Required Evidence
+# ============================================================
+
+evidence:
+  required_for_deduction: true
+  required_for_rejection: true
+  required_policy_clause: true
+  required_source_page: true
