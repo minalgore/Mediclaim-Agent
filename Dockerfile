@@ -7,26 +7,48 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# ------------------------------------------------------------
 # System dependencies
+# ------------------------------------------------------------
 # Tesseract is required for OCR.
+# Build tools are included because some Python packages may
+# need to build native extensions during installation.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         tesseract-ocr \
         tesseract-ocr-eng \
         libgl1 \
         libglib2.0-0 \
+        build-essential \
+        gcc \
+        g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies first for Docker layer caching.
+# ------------------------------------------------------------
+# Python packaging tools
+# ------------------------------------------------------------
+RUN python -m pip install --no-cache-dir \
+        "pip<25" \
+        "setuptools<75" \
+        "wheel"
+
+# ------------------------------------------------------------
+# Install Python dependencies
+# ------------------------------------------------------------
 COPY requirements.txt .
 
-RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+RUN python -m pip install --no-cache-dir \
+        --prefer-binary \
+        -r requirements.txt
 
+# ------------------------------------------------------------
 # Copy application
+# ------------------------------------------------------------
 COPY . .
 
-# Create required directories
+# ------------------------------------------------------------
+# Required runtime directories
+# ------------------------------------------------------------
 RUN mkdir -p \
     data/policies \
     data/sample_claims \
