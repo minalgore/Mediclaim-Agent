@@ -321,33 +321,54 @@ class ClaimAgent:
     def _retrieve_memory(
         self,
         policyholder_id: str,
-    ) -> Dict[str, Any]:
-        """
-        Retrieve long-term policyholder context.
-        """
+        ) -> Dict[str, Any]:
+        
+            """
+            Retrieve long-term policyholder context.
+            """
 
-        if not policyholder_id:
+            if not policyholder_id:
+                return {
+                    "peds": [],
+                    "claims": [],
+                    "policies": [],
+                    "history": [],
+                }
+
+            peds = self.memory.get_peds(policyholder_id)
+            claims = self.memory.get_claims(policyholder_id)
+            policies = self.memory.get_policies(policyholder_id)
+            history = self.memory.get_history(policyholder_id)
+
+            # Demo/observability logging
+            print(
+                f"[MEMORY] Policyholder: {policyholder_id}"
+            )
+            print(
+                f"[MEMORY] Previous claims: {len(claims)}"
+            )
+            print(
+                f"[MEMORY] PED records: {len(peds)}"
+            )
+            print(
+                f"[MEMORY] Policy records: {len(policies)}"
+            )
+            print(
+                f"[MEMORY] Total history records: {len(history)}"
+            )
+
+            for claim in claims:
+                print(
+                    f"[MEMORY] Previous claim: "
+                    f"{claim.get('data', {}).get('claim_id')}"
+                )
+
             return {
-                "peds": [],
-                "claims": [],
-                "policies": [],
-                "history": [],
+                "peds": peds,
+                "claims": claims,
+                "policies": policies,
+                "history": history,
             }
-
-        return {
-            "peds": self.memory.get_peds(
-                policyholder_id
-            ),
-            "claims": self.memory.get_claims(
-                policyholder_id
-            ),
-            "policies": self.memory.get_policies(
-                policyholder_id
-            ),
-            "history": self.memory.get_history(
-                policyholder_id
-            ),
-        }
 
     # =========================================================
     # Rule checks

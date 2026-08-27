@@ -14,14 +14,20 @@ class Adjudicator:
     final claim adjudication decision.
     """
 
-    def __init__(self, *args: Any, **kwargs: Any) -> None:
+    def __init__(
+        self,
+        claim_agent: Any = None,
+        *args: Any,
+        **kwargs: Any,
+    ) -> None:
         """
-        Keep the constructor intentionally lightweight.
+        Initialize the adjudicator.
 
-        The adjudicator consumes already-produced rule results,
-        policy evidence, and fraud results.
+        The ClaimAgent is used to persist sanitized claim
+        information into long-term memory after adjudication.
         """
-        pass
+
+        self.claim_agent = claim_agent
 
     # =========================================================
     # Main adjudication
@@ -267,7 +273,7 @@ class Adjudicator:
         # Final result
         # -----------------------------------------------------
 
-        return {
+        final_result = {
             "claim_id": str(
                 claim.get(
                     "claim_id",
@@ -287,6 +293,29 @@ class Adjudicator:
             "guardrail_flags": guardrail_flags,
         }
 
+        # -----------------------------------------------------
+        # Persist sanitized claim memory
+        # -----------------------------------------------------
+
+        if self.claim_agent is not None:
+            try:
+                self.claim_agent.update_memory(
+                    claim,
+                    final_result,
+                )
+
+                print(
+                    "[MEMORY] Claim successfully stored:"
+                    f" {claim.get('claim_id')}"
+                )
+
+            except Exception as exc:
+                print(
+                    "[MEMORY] Failed to update memory:"
+                    f" {exc}"
+                )
+
+        return final_result
     # =========================================================
     # Status determination
     # =========================================================

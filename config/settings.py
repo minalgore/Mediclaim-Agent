@@ -87,6 +87,11 @@ class Settings(BaseSettings):
         validation_alias="LANGCHAIN_PROJECT",
     )
 
+    langchain_endpoint: str = Field(
+    default="https://apac.api.smith.langchain.com",
+    validation_alias="LANGCHAIN_ENDPOINT",
+    )
+
     # ---------------------------------------------------------
     # Vector Store
     # ---------------------------------------------------------
@@ -109,6 +114,30 @@ class Settings(BaseSettings):
     rag_chunk_overlap: int = Field(
         default=100,
         validation_alias="RAG_CHUNK_OVERLAP",
+    )
+
+    # ---------------------------------------------------------
+    # Redis
+    # ---------------------------------------------------------
+
+    redis_host: str = Field(
+        default="localhost",
+        validation_alias="REDIS_HOST",
+    )
+
+    redis_port: int = Field(
+        default=6379,
+        validation_alias="REDIS_PORT",
+    )
+
+    redis_password: str = Field(
+        default="",
+        validation_alias="REDIS_PASSWORD",
+    )
+
+    redis_cache_ttl: int = Field(
+        default=3600,
+        validation_alias="REDIS_CACHE_TTL",
     )
     # ---------------------------------------------------------
     # Mem0

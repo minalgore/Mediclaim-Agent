@@ -15,14 +15,18 @@ from fastapi import (
     UploadFile,
 )
 
-from app.adjudicator import Adjudicator
-from app.claim_agent import ClaimAgent
-from app.document_processor import DocumentProcessor
-from app.models import ClaimRequest
 from app.observability import (
     configure_langsmith,
     trace,
 )
+# Configure LangSmith BEFORE importing agents/adjudicator
+configure_langsmith()
+
+from app.adjudicator import Adjudicator
+from app.claim_agent import ClaimAgent
+from app.document_processor import DocumentProcessor
+from app.models import ClaimRequest
+
 from app.pii_redactor import PIIRedactor
 
 
@@ -33,7 +37,6 @@ router = APIRouter()
 # Application services
 # ---------------------------------------------------------
 
-configure_langsmith()
 
 document_processor = DocumentProcessor()
 pii_redactor = PIIRedactor()
@@ -42,7 +45,9 @@ claim_agent = ClaimAgent(
     document_processor=document_processor,
 )
 
-adjudicator = Adjudicator()
+adjudicator = Adjudicator(
+    claim_agent=claim_agent
+)
 
 
 # ---------------------------------------------------------

@@ -1,0 +1,17 @@
+venv/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.git/
+.github/
+.env
+*.log
+data/medical_documents/*
+data/sample_claims/*
+vectorstore/*
+*.faiss
+*.pkl
+*.bak

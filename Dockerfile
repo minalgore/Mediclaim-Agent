@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM python:3.8-slim
 
 # Prevent Python from writing .pyc files
 # and ensure logs are immediately visible.
@@ -35,4 +35,4 @@ RUN mkdir -p \
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
