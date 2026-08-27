@@ -1,18 +1,10 @@
 FROM python:3.8-slim
 
-# Prevent Python from writing .pyc files
-# and ensure logs are immediately visible.
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
-# ------------------------------------------------------------
-# System dependencies
-# ------------------------------------------------------------
-# Tesseract is required for OCR.
-# Build tools are included because some Python packages may
-# need to build native extensions during installation.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
         tesseract-ocr \
@@ -24,31 +16,23 @@ RUN apt-get update \
         g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# ------------------------------------------------------------
-# Python packaging tools
-# ------------------------------------------------------------
 RUN python -m pip install --no-cache-dir \
         "pip<25" \
         "setuptools<75" \
         "wheel"
 
-# ------------------------------------------------------------
-# Install Python dependencies
-# ------------------------------------------------------------
 COPY requirements.txt .
 
 RUN python -m pip install --no-cache-dir \
         --prefer-binary \
         -r requirements.txt
 
-# ------------------------------------------------------------
-# Copy application
-# ------------------------------------------------------------
 COPY . .
 
-# ------------------------------------------------------------
-# Required runtime directories
-# ------------------------------------------------------------
+# Verify application import inside the Docker image.
+RUN PYTHONPATH=/app python -c \
+    "from main import app; print('Docker FastAPI import: PASS')"
+
 RUN mkdir -p \
     data/policies \
     data/sample_claims \
