@@ -12,42 +12,6 @@ from presidio_analyzer import (
 from app.models import RedactionResult
 
 
-# ============================================================
-# Process-wide Presidio Analyzer
-# ============================================================
-#
-# AnalyzerEngine is relatively expensive because it initializes
-# NLP components. Creating a new instance for every PIIRedactor
-# can cause significant resource usage during a large test suite
-# or application lifetime.
-#
-# We therefore create ONE AnalyzerEngine per Python process and
-# reuse it across PIIRedactor instances.
-#
-# The token map remains instance-specific so that one redactor
-# cannot accidentally restore another redactor's tokens.
-# ============================================================
-
-_ANALYZER = None
-_RECOGNIZERS_REGISTERED = False
-
-
-def _get_analyzer():
-    """
-    Return the process-wide Presidio AnalyzerEngine.
-
-    The analyzer is initialized lazily so importing this module
-    does not immediately initialize the NLP stack.
-    """
-
-    global _ANALYZER
-
-    if _ANALYZER is None:
-        _ANALYZER = AnalyzerEngine()
-
-    return _ANALYZER
-
-
 class PIIRedactor:
     """
     Indian PII/PHI redaction layer.
@@ -62,40 +26,20 @@ class PIIRedactor:
 
     Original values are stored in a local token map so that
     authorized de-anonymization can be performed later.
-
-    Presidio AnalyzerEngine is shared across PIIRedactor instances
-    within the same Python process.
     """
 
     def __init__(self):
-        # Reuse one Presidio analyzer instead of creating a new
-        # AnalyzerEngine for every PIIRedactor instance.
-        self.analyzer = _get_analyzer()
+        self.analyzer = AnalyzerEngine()
 
-        # Token mappings remain isolated per PIIRedactor instance.
         self._token_map: Dict[str, str] = {}
 
-        # Register custom recognizers only once.
-        self._register_indian_recognizers_once()
+        self._register_indian_recognizers()
 
     # =========================================================
     # Register Indian-specific recognizers
     # =========================================================
 
-    def _register_indian_recognizers_once(self):
-        """
-        Register Indian-specific recognizers exactly once per
-        Python process.
-
-        Multiple PIIRedactor instances reuse the same analyzer
-        and therefore must not repeatedly register recognizers.
-        """
-
-        global _RECOGNIZERS_REGISTERED
-
-        if _RECOGNIZERS_REGISTERED:
-            return
-
+    def _register_indian_recognizers(self):
         recognizers = [
             self._aadhaar_recognizer(),
             self._pan_recognizer(),
@@ -111,11 +55,9 @@ class PIIRedactor:
                     recognizer
                 )
             except Exception:
-                # Prevent application failure if a recognizer
-                # has already been registered.
+                # Prevent duplicate-registration errors
+                # during application reload.
                 pass
-
-        _RECOGNIZERS_REGISTERED = True
 
     # =========================================================
     # Aadhaar
@@ -123,14 +65,14 @@ class PIIRedactor:
 
     def _aadhaar_recognizer(self):
         pattern = Pattern(
-            name="aadhaar_pattern",
-            regex=(
-                r"(?<![\d+])"
-                r"\d{4}[- ]?\d{4}[- ]?\d{4}"
-                r"(?!\d)"
-            ),
-            score=0.90,
-        )
+        name="aadhaar_pattern",
+        regex=(
+            r"(?<![\d+])"
+            r"\d{4}[- ]?\d{4}[- ]?\d{4}"
+            r"(?!\d)"
+        ),
+        score=0.90,
+    )
 
         return PatternRecognizer(
             supported_entity="IN_AADHAAR",
@@ -216,18 +158,17 @@ class PIIRedactor:
 
     def _ipd_recognizer(self):
         pattern = Pattern(
-            name="ipd_pattern",
-            regex=(
-                r"\bIPD202\d{8}\b"
-            ),
-            score=0.95,
-        )
+        name="ipd_pattern",
+        regex=(
+            r"\bIPD202\d{8}\b"
+        ),
+        score=0.95,
+    )
 
         return PatternRecognizer(
-            supported_entity="IN_IPD",
-            patterns=[pattern],
-        )
-
+        supported_entity="IN_IPD",
+        patterns=[pattern],
+    )
     # =========================================================
     # Hospital registration number
     # =========================================================
@@ -390,71 +331,85 @@ class PIIRedactor:
             entity_type = result.entity_type
 
             # -------------------------------------------------
-            # PAN false-positive protection
+            # Never classify date-like values as PAN
             # -------------------------------------------------
 
             if entity_type == "IN_PAN":
 
-                # Dates such as:
-                # 2026-08-10
-                if re.fullmatch(
-                    r"\d{4}[-/]\d{1,2}[-/]\d{1,2}",
-                    value,
-                ):
-                    continue
-
-                # Purely numeric values are never PAN.
-                if value.isdigit():
-                    continue
-
-            # -------------------------------------------------
-            # Aadhaar protection
-            # -------------------------------------------------
-
-            if entity_type == "IN_AADHAAR":
-
-                # Don't redact values that are clearly dates.
-                if re.fullmatch(
-                    r"\d{1,4}[-/]\d{1,2}[-/]\d{1,4}",
-                    value,
+                if self._looks_like_date(
+                    value
                 ):
                     continue
 
             # -------------------------------------------------
-            # Phone protection
-            # -------------------------------------------------
-
-            if entity_type == "IN_PHONE":
-
-                digits = re.sub(
-                    r"\D",
-                    "",
-                    value,
-                )
-
-                # Indian mobile numbers must contain
-                # 10 digits, or 12 digits including 91.
-                if len(digits) not in (10, 12):
-                    continue
-
-            # -------------------------------------------------
-            # IPD protection
+            # IPD must be an actual value, not the label
             # -------------------------------------------------
 
             if entity_type == "IN_IPD":
 
-                # Must look like:
-                # IPD20212345678
-                if not re.fullmatch(
-                    r"IPD202\d{8}",
-                    value,
-                    flags=re.IGNORECASE,
-                ):
+                normalized = value.strip()
+
+                if normalized.upper() in {
+                    "IPD",
+                    "IPD NO",
+                    "IPD NUMBER",
+                }:
+                    continue
+
+                if len(normalized) < 3:
+                    continue
+
+            # -------------------------------------------------
+            # Registration must have a real value
+            # -------------------------------------------------
+
+            if entity_type == "IN_REGISTRATION":
+
+                normalized = value.strip()
+
+                if len(normalized) < 3:
                     continue
 
             filtered.append(result)
 
         return filtered
+
+    # =========================================================
+    # Date detection
+    # =========================================================
+
+    def _looks_like_date(
+        self,
+        value: str,
+    ) -> bool:
+        """
+        Return True for common date formats.
+
+        Examples:
+
+            2026-08-10
+            10-08-2026
+            10/08/2026
+            2026/08/10
+        """
+
+        value = value.strip()
+
+        date_patterns = [
+            r"^\d{4}-\d{2}-\d{2}$",
+            r"^\d{4}/\d{2}/\d{2}$",
+            r"^\d{2}-\d{2}-\d{4}$",
+            r"^\d{2}/\d{2}/\d{4}$",
+            r"^\d{2}\.\d{2}\.\d{4}$",
+        ]
+
+        return any(
+            re.fullmatch(
+                pattern,
+                value,
+            )
+            for pattern in date_patterns
+        )
 
     # =========================================================
     # Remove overlapping results
@@ -465,21 +420,18 @@ class PIIRedactor:
         results,
     ):
         """
-        Remove overlapping Presidio entities.
+        Presidio can return overlapping entities.
 
-        The highest-confidence entity is preferred.
+        Keep the higher-confidence result.
         """
-
-        if not results:
-            return []
 
         sorted_results = sorted(
             results,
             key=lambda result: (
-                -result.score,
-                result.start,
-                result.end,
+                result.score,
+                -(result.end - result.start),
             ),
+            reverse=True,
         )
 
         selected = []
@@ -503,7 +455,7 @@ class PIIRedactor:
         return selected
 
     # =========================================================
-    # Token generation
+    # Create token
     # =========================================================
 
     def _create_token(
@@ -511,21 +463,20 @@ class PIIRedactor:
         entity_type: str,
     ) -> str:
         """
-        Create a unique replacement token.
+        Create a short irreversible-looking token.
         """
 
-        short_uuid = uuid.uuid4().hex[:12]
+        token_id = uuid.uuid4().hex[:10]
 
         return (
-            "["
-            + entity_type
-            + ":"
-            + short_uuid
-            + "]"
+            "[{}:{}]".format(
+                entity_type,
+                token_id,
+            )
         )
 
     # =========================================================
-    # Restore text
+    # Restore token
     # =========================================================
 
     def restore_text(
@@ -533,31 +484,22 @@ class PIIRedactor:
         text: str,
     ) -> str:
         """
-        Restore previously redacted values using the local
-        token map.
+        Restore tokens using the local token map.
 
-        Only tokens generated by this PIIRedactor instance
-        can be restored.
+        This should only be used by an authorized caller.
         """
 
-        if not text:
-            return text
+        restored = text
 
-        restored_text = text
-
-        # Replace longer tokens first to avoid accidental
-        # partial replacements.
-        for token in sorted(
-            self._token_map.keys(),
-            key=len,
-            reverse=True,
+        for token, original in (
+            self._token_map.items()
         ):
-            restored_text = restored_text.replace(
+            restored = restored.replace(
                 token,
-                self._token_map[token],
+                original,
             )
 
-        return restored_text
+        return restored
 
     # =========================================================
     # Token map
@@ -568,18 +510,6 @@ class PIIRedactor:
         Return a copy of the current token map.
         """
 
-        return dict(self._token_map)
-
-    # =========================================================
-    # Clear token map
-    # =========================================================
-
-    def clear_token_map(self):
-        """
-        Clear locally stored PII mappings.
-
-        This should be called when the mappings are no longer
-        required, especially for long-running processes.
-        """
-
-        self._token_map.clear()
+        return dict(
+            self._token_map
+        )
