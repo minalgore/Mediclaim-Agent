@@ -171,7 +171,18 @@ jobs:
             -d \
             --name mediclaim-test \
             -p 8000:8000 \
+            -e OPENAI_API_KEY="${OPENAI_API_KEY}" \
+            -e LANGCHAIN_API_KEY="${LANGCHAIN_API_KEY}" \
+            -e LANGCHAIN_PROJECT="${LANGCHAIN_PROJECT}" \
+            -e REDIS_HOST="${REDIS_HOST}" \
+            -e REDIS_PORT="${REDIS_PORT}" \
             ${IMAGE_NAME}:sha-${GITHUB_SHA}
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          LANGCHAIN_API_KEY: ${{ secrets.LANGCHAIN_API_KEY }}
+          LANGCHAIN_PROJECT: ${{ vars.LANGCHAIN_PROJECT }}
+          REDIS_HOST: ${{ vars.REDIS_HOST }}
+          REDIS_PORT: ${{ vars.REDIS_PORT }}
 
       - name: Wait for application startup
         run: |
